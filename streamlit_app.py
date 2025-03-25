@@ -48,11 +48,4 @@ elif selection == "Quiz":
                     st.success("Correct!")
                 else:
                     st.error(f"Incorrect. The correct answer is {correct_answer}.")
-        else:
-<<<<<<< HEAD
-            st.error("No questions generated.")
-=======
-            st.error("No questions generated.")
-
-
->>>>>>> origin/main
+        
