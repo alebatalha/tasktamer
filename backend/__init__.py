@@ -1,1 +1,3 @@
-# Initialize the backend package
+from .core import TaskTamer
+
+__all__ = ['TaskTamer']
