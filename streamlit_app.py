@@ -1,9 +1,7 @@
 import streamlit as st
-import sys
-import os
-sys.path.append(os.path.abspath(os.getcwd()))
-from backend_module import break_task, summarize_documents, generate_questions
-
+from backend.task_breakdown import break_task
+from backend.summarization import summarize_documents
+from backend.question_generation import generate_questions
 
 # Sidebar navigation
 st.sidebar.title('TaskTamer')
@@ -32,14 +30,14 @@ elif selection == "Summary":
     st.title('Summary')
     content = st.text_area("Enter content to summarize or upload a file:")
     if st.button('Summarize'):
-        summary = summarize_documents()
+        summary = summarize_documents(content)
         st.write(summary)
 
 # Quiz Feature
 elif selection == "Quiz":
     st.title('Quiz')
     if st.button('Generate Quiz'):
-        question_data = generate_questions()
+        question_data = generate_questions(content)
         if question_data and isinstance(question_data, list) and question_data:
             question = question_data[0]['question']
             options = question_data[0]['options']
@@ -52,4 +50,5 @@ elif selection == "Quiz":
                     st.error(f"Incorrect. The correct answer is {correct_answer}.")
         else:
             st.error("No questions generated.")
+
 
