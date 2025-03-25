@@ -1,34 +1,50 @@
 import streamlit as st
+from backend_module import break_task, summarize_documents, generate_questions
 
 # Sidebar navigation
 st.sidebar.title('TaskTamer')
-selection = st.sidebar.radio("Go to", ["Home", "Task Breakdown", "Formalizer", "Estimator"])
+selection = st.sidebar.radio("Go to", ["Home", "Breakdown Activities", "Summary", "Quiz"])
 
 # Home Page
 if selection == "Home":
     st.title('Welcome to TaskTamer')
     st.write('Select a feature from the sidebar to get started.')
 
-# Task Breakdown Feature
-elif selection == "Task Breakdown":
-    st.title('Task Breakdown')
+# Breakdown Activities Feature
+elif selection == "Breakdown Activities":
+    st.title('Breakdown Activities')
     task = st.text_input("Enter a complex task:")
     if st.button('Break Down Task'):
-        # Placeholder for task breakdown logic
-        st.write("Here are the steps to complete your task:")
+        steps = break_task(task)
+        if steps:
+            st.write("Here are the steps to complete your task:")
+            for i, step in enumerate(steps, 1):
+                st.write(f"{i}. {step}")
+        else:
+            st.error("No steps generated.")
 
-# Formalizer Feature
-elif selection == "Formalizer":
-    st.title('Formalizer')
-    text = st.text_area("Enter text to formalize:")
-    if st.button('Formalize Text'):
-        # Placeholder for text formalization logic
-        st.write("Formalized text will appear here.")
+# Summary Feature
+elif selection == "Summary":
+    st.title('Summary')
+    content = st.text_area("Enter content to summarize or upload a file:")
+    if st.button('Summarize'):
+        summary = summarize_documents()
+        st.write(summary)
 
-# Estimator Feature
-elif selection == "Estimator":
-    st.title('Estimator')
-    task = st.text_input("Enter a task to estimate time:")
-    if st.button('Estimate Time'):
-        # Placeholder for time estimation logic
-        st.write("Estimated time to complete the task: X minutes")
+# Quiz Feature
+elif selection == "Quiz":
+    st.title('Quiz')
+    if st.button('Generate Quiz'):
+        question_data = generate_questions()
+        if question_data and isinstance(question_data, list) and question_data:
+            question = question_data[0]['question']
+            options = question_data[0]['options']
+            correct_answer = question_data[0]['answer']
+            answer = st.radio(question, options)
+            if st.button('Submit Answer'):
+                if answer == correct_answer:
+                    st.success("Correct!")
+                else:
+                    st.error(f"Incorrect. The correct answer is {correct_answer}.")
+        else:
+            st.error("No questions generated.")
