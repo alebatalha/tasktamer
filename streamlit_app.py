@@ -1,5 +1,9 @@
 import streamlit as st
-from my_folder.backend_module import break_task, summarize_documents, generate_questions
+import sys
+import os
+sys.path.append(os.path.abspath(os.getcwd()))
+from backend_module import break_task, summarize_documents, generate_questions
+
 
 # Sidebar navigation
 st.sidebar.title('TaskTamer')
