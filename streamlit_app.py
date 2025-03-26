@@ -103,6 +103,47 @@ st.markdown("""
         padding: 20px;
         margin-top: 20px;
     }
+    
+    /* Chat styling */
+    .stChatFloatingInputContainer {
+        border-radius: 20px;
+        border: 1px solid #ddd;
+    }
+    
+    .stChatMessage {
+        background-color: #f9f9f9;
+        border-radius: 15px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .stChatMessageContent {
+        color: #333;
+    }
+    
+    /* Assistant message */
+    .stChatMessage[data-testid="assistant"] {
+        background-color: #f0e6f5; /* Light purple for assistant */
+    }
+    
+    /* User message */
+    .stChatMessage[data-testid="user"] {
+        background-color: #e6f5f0; /* Light green for user */
+    }
+    
+    /* Chat container */
+    .chat-container {
+        margin-top: 40px;
+        padding: 20px;
+        border-radius: 15px;
+        background-color: white;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Chat input */
+    .stChatInputContainer {
+        padding-bottom: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -502,22 +543,6 @@ def display_quiz_results():
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
-
-# Main app logic
-if __name__ == "__main__":
-    # Initialize session state for navigation
-    if "current_feature" not in st.session_state:
-        st.session_state.current_feature = None
-    
-    # Navigation logic
-    if st.session_state.current_feature is None:
-        main_page()
-    elif st.session_state.current_feature == "task_breakdown":
-        task_breakdown_page()
-    elif st.session_state.current_feature == "summarizer":
-        summarizer_page()
-    elif st.session_state.current_feature == "quiz":
-        quiz_page()
 # Chat functionality
 def show_chat():
     st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
@@ -530,42 +555,42 @@ def show_chat():
             <p>Ask me anything about your tasks or how to use TaskTamer</p>
         </div>
         """, unsafe_allow_html=True)
-    
-    # Initialize chat history
-    if "chat_messages" not in st.session_state:
-        st.session_state.chat_messages = [
-            {"role": "assistant", "content": "Hi there! I'm your TaskTamer Assistant. How can I help you today?"}
-        ]
-    
-    # Display chat messages from history
-    for message in st.session_state.chat_messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-    
-    # React to user input
-    if prompt := st.chat_input("Ask a question about TaskTamer..."):
-        # Add user message to chat history
-        st.session_state.chat_messages.append({"role": "user", "content": prompt})
         
-        # Display user message in chat
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        # Initialize chat history
+        if "chat_messages" not in st.session_state:
+            st.session_state.chat_messages = [
+                {"role": "assistant", "content": "Hi there! I'm your TaskTamer Assistant. How can I help you today?"}
+            ]
         
-        # Generate assistant response
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = generate_assistant_response(prompt)
+        # Display chat messages from history
+        for message in st.session_state.chat_messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+        
+        # React to user input
+        if prompt := st.chat_input("Ask a question about TaskTamer..."):
+            # Add user message to chat history
+            st.session_state.chat_messages.append({"role": "user", "content": prompt})
             
-            # Simulate typing
-            response = ""
-            for chunk in full_response.split():
-                response += chunk + " "
-                time.sleep(0.05)
-                message_placeholder.markdown(response + "▌")
-            message_placeholder.markdown(full_response)
-        
-        # Add assistant response to chat history
-        st.session_state.chat_messages.append({"role": "assistant", "content": full_response})
+            # Display user message in chat
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            
+            # Generate assistant response
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                full_response = generate_assistant_response(prompt)
+                
+                # Simulate typing
+                response = ""
+                for chunk in full_response.split():
+                    response += chunk + " "
+                    time.sleep(0.05)
+                    message_placeholder.markdown(response + "▌")
+                message_placeholder.markdown(full_response)
+            
+            # Add assistant response to chat history
+            st.session_state.chat_messages.append({"role": "assistant", "content": full_response})
 
 def generate_assistant_response(prompt):
     """Generate assistant responses based on user prompt."""
