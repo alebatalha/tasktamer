@@ -1,9 +1,9 @@
 """UI pages package for TaskTamer."""
-from .home_page import show_home_page
-from .task_page import show_task_page
-from .summary_page import show_summary_page
-from .quiz_page import show_quiz_page
-from .chat_component import show_chat_component
+from .pages.home_page import show_home_page
+from .pages.task_page import show_task_page
+from .pages.summary_page import show_summary_page
+from .pages.quiz_page import show_quiz_page
+from .pages.chat_component import show_chat_component
 
 __all__ = [
     'show_home_page',
