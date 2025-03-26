@@ -518,3 +518,99 @@ if __name__ == "__main__":
         summarizer_page()
     elif st.session_state.current_feature == "quiz":
         quiz_page()
+# Chat functionality
+def show_chat():
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+    
+    # Create expander for chat
+    with st.expander("🤖 TaskTamer Assistant - Chat with me for help!", expanded=False):
+        st.markdown("""
+        <div class="main-header">
+            <h3>🤖 TaskTamer Assistant</h3>
+            <p>Ask me anything about your tasks or how to use TaskTamer</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Initialize chat history
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = [
+            {"role": "assistant", "content": "Hi there! I'm your TaskTamer Assistant. How can I help you today?"}
+        ]
+    
+    # Display chat messages from history
+    for message in st.session_state.chat_messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    # React to user input
+    if prompt := st.chat_input("Ask a question about TaskTamer..."):
+        # Add user message to chat history
+        st.session_state.chat_messages.append({"role": "user", "content": prompt})
+        
+        # Display user message in chat
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Generate assistant response
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = generate_assistant_response(prompt)
+            
+            # Simulate typing
+            response = ""
+            for chunk in full_response.split():
+                response += chunk + " "
+                time.sleep(0.05)
+                message_placeholder.markdown(response + "▌")
+            message_placeholder.markdown(full_response)
+        
+        # Add assistant response to chat history
+        st.session_state.chat_messages.append({"role": "assistant", "content": full_response})
+
+def generate_assistant_response(prompt):
+    """Generate assistant responses based on user prompt."""
+    # Simple pattern matching for common queries
+    prompt_lower = prompt.lower()
+    
+    # Task breakdown related
+    if any(keyword in prompt_lower for keyword in ["break down", "task", "steps", "breakdown"]):
+        return "To break down a task, go to the Task Breaker tool from the home page. Enter your complex task, and I'll divide it into manageable steps for you. You can save these steps or mark them as complete as you work through them."
+    
+    # Summarization related
+    elif any(keyword in prompt_lower for keyword in ["summarize", "summary", "shorter", "summarization"]):
+        return "The Summarizer tool helps you create concise summaries from text. You can input text directly, upload a document, or enter a web URL. After generating a summary, you can save it for later reference."
+    
+    # Quiz related
+    elif any(keyword in prompt_lower for keyword in ["quiz", "test", "question", "knowledge"]):
+        return "The Quiz Master generates multiple-choice questions from your content to test your knowledge. You can input text, upload a document, or use a web URL. After taking the quiz, you'll get a score and can review all questions."
+    
+    # Help related
+    elif any(keyword in prompt_lower for keyword in ["help", "how to", "guide", "tutorial"]):
+        return "TaskTamer has three main tools:\n\n1. **Task Breaker**: Breaks complex tasks into steps\n2. **Summarizer**: Creates concise summaries of documents\n3. **Quiz Master**: Generates quizzes to test knowledge\n\nTo use any tool, select it from the home page and follow the instructions. Let me know if you need specific help with any feature!"
+    
+    # About TaskTamer
+    elif any(keyword in prompt_lower for keyword in ["about", "what is", "tasktamer", "purpose"]):
+        return "TaskTamer is your magical productivity assistant designed to help you manage complex tasks, understand documents better, and test your knowledge. It combines AI-powered tools with a user-friendly interface to make your learning and productivity journey smoother."
+    
+    # Fallback response
+    else:
+        return "I'm here to help you with task breakdown, summarization, and quiz generation in TaskTamer. Could you clarify what you'd like assistance with regarding these features? You can ask about specific tools or how to use them effectively."
+
+# Main app logic
+if __name__ == "__main__":
+    # Initialize session state for navigation
+    if "current_feature" not in st.session_state:
+        st.session_state.current_feature = None
+    
+    # Navigation logic
+    if st.session_state.current_feature is None:
+        main_page()
+    elif st.session_state.current_feature == "task_breakdown":
+        task_breakdown_page()
+    elif st.session_state.current_feature == "summarizer":
+        summarizer_page()
+    elif st.session_state.current_feature == "quiz":
+        quiz_page()
+    
+    # Always show the chat at the bottom
+    show_chat()
