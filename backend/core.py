@@ -80,16 +80,11 @@ class TaskTamer:
         return self.task_manager.break_task(task_description)
     
     def summarize_text(self, content: str) -> str:
-        """
-        Generate a summary of the provided text.
-        
-        Args:
-            content: Text content to summarize
-            
-        Returns:
-            Summary text
-        """
-        return self.summarizer.summarize(content)
+        if not content:
+          return "No content provided to summarize."
+    
+    # Call the summarizer's summarize method
+          return self.summarizer.summarize(content)
     
     def generate_questions(self, content: str) -> List[Dict[str, Union[str, List[str]]]]:
         """
