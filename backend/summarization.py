@@ -3,8 +3,8 @@ Summarizer page UI for TaskTamer.
 """
 import streamlit as st
 import time
-from ..styles import render_header, render_divider, result_container_start, result_container_end
-from ..components.inputs import content_input_section
+from ui.styles import render_header, render_divider, result_container_start, result_container_end
+from ui.components.inputs import content_input_section
 
 def show_summary_page(task_tamer):
     """
