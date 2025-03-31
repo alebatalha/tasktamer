@@ -7,6 +7,14 @@ import os
 import sys
 from pathlib import Path
 
+# First set page config - this MUST be the first Streamlit command
+st.set_page_config(
+    page_title="TaskTamer",
+    page_icon="🧙‍♂️",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
 # Ensure directories exist in path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
@@ -35,14 +43,6 @@ def get_task_tamer():
     return TaskTamer()
 
 task_tamer = get_task_tamer()
-
-# Set page config
-st.set_page_config(
-    page_title="TaskTamer",
-    page_icon="🧙‍♂️",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
 
 # Apply custom CSS
 apply_custom_css()
