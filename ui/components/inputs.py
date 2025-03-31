@@ -4,6 +4,7 @@ Input UI components for TaskTamer.
 import streamlit as st
 import time
 from urllib.parse import urlparse
+from utils.helpers import handle_file_upload
 
 def content_input_section(task_tamer):
     """
@@ -26,18 +27,13 @@ def content_input_section(task_tamer):
     elif input_type == "Upload File":
         uploaded_file = st.file_uploader("Upload a document:", type=['txt', 'pdf'])
         if uploaded_file is not None:
-            try:
-                # Save the file temporarily
-                with open("temp_file.txt", "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                
-                # Read the file content
-                with open("temp_file.txt", "r", encoding="utf-8", errors="replace") as f:
-                    content = f.read()
-                
+            # Use the helper function to handle file upload
+            content = handle_file_upload(uploaded_file)
+            if content:
                 st.success(f"File '{uploaded_file.name}' uploaded successfully!")
-            except Exception as e:
-                st.error(f"Error processing file: {str(e)}")
+                # Show a preview
+                with st.expander("Preview file content"):
+                    st.write(content[:500] + "..." if len(content) > 500 else content)
     
     elif input_type == "Web URL":
         url = st.text_input("Enter a webpage URL:")

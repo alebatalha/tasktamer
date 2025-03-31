@@ -41,17 +41,38 @@ def handle_file_upload(uploaded_file, supported_types: List[str] = None) -> Opti
         
         # For simple text files, read directly
         if file_extension == "txt":
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
             os.unlink(file_path)  # Delete the temp file
             return content
             
-        # For PDF files, we would need additional processing
+        # For PDF files, extract text
         elif file_extension == "pdf":
-            # This would need pdfplumber or PyPDF2 in a real implementation
-            st.warning("PDF processing is not fully implemented in this demo.")
-            os.unlink(file_path)  # Delete the temp file
-            return "PDF content would be extracted here."
+            try:
+                # Try using PyPDF2
+                import PyPDF2
+                content = ""
+                with open(file_path, 'rb') as f:
+                    pdf_reader = PyPDF2.PdfReader(f)
+                    for page_num in range(len(pdf_reader.pages)):
+                        page = pdf_reader.pages[page_num]
+                        content += page.extract_text() + "\n\n"
+                os.unlink(file_path)  # Delete the temp file
+                return content
+            except ImportError:
+                try:
+                    # Try using pdfplumber instead
+                    import pdfplumber
+                    content = ""
+                    with pdfplumber.open(file_path) as pdf:
+                        for page in pdf.pages:
+                            content += page.extract_text() + "\n\n"
+                    os.unlink(file_path)  # Delete the temp file
+                    return content
+                except ImportError:
+                    st.warning("PDF processing libraries not found. Please install PyPDF2 or pdfplumber for PDF processing.")
+                    os.unlink(file_path)  # Delete the temp file
+                    return "Unable to extract PDF text. Please install PyPDF2 or pdfplumber."
     
     except Exception as e:
         st.error(f"Error processing file: {str(e)}")
