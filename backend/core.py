@@ -1,6 +1,3 @@
-"""
-Core TaskTamer class that integrates all backend functionality.
-"""
 import os
 import traceback
 from typing import List, Dict, Union, Optional
