@@ -1,42 +1,21 @@
+"""
+TaskTamer - Your magical productivity assistant.
+Main application entry point.
+"""
 import streamlit as st
+
+# This MUST be the first Streamlit command
+st.set_page_config(
+    page_title="TaskTamer",
+    page_icon="🧙‍♂️",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# Now import everything else
 import os
 import sys
 from pathlib import Path
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
-# Set page config first
-st.set_page_config(
-    page_title="TaskTamer",
-    page_icon="🧙‍♂️",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-# Then import the modules
-try:
-    from backend.core import TaskTamer
-    from ui.styles import apply_custom_css
-    from ui.pages.home_page import show_home_page
-    from ui.pages.task_page import show_task_page
-    from ui.pages.summary_page import show_summary_page
-    from ui.pages.quiz_page import show_quiz_page
-    from ui.pages.chat_component import show_chat_component
-    from utils.helpers import ensure_directories
-except ImportError as e:
-    st.error(f"Could not import required modules: {str(e)}")
-    st.info("Make sure all required directories and modules exist.")
-    st.stop()
-
-# First set page config - this MUST be the first Streamlit command
-st.set_page_config(
-    page_title="TaskTamer",
-    page_icon="🧙‍♂️",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
 
 # Ensure directories exist in path
 current_dir = os.path.dirname(os.path.abspath(__file__))
