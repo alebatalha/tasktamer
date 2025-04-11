@@ -1,40 +1,41 @@
-# backend/task_manager.py
 from typing import List
+from utils.fallback_detector import USING_FALLBACK
 
-# Try importing Haystack components, fall back to simple implementations
-try:
-    from haystack.nodes import PromptNode, PromptTemplate
-    from config import LLM_MODEL
-    
-    # Haystack-based implementation
-    task_prompt = PromptNode(
-        model_name_or_path=LLM_MODEL,
-        default_prompt_template=PromptTemplate(
-            "Break the following task into smaller steps: {task_description}"
+if not USING_FALLBACK:
+    try:
+        from haystack.nodes import PromptNode, PromptTemplate
+        from config import LLM_MODEL
+        
+        task_prompt = PromptNode(
+            model_name_or_path=LLM_MODEL,
+            default_prompt_template=PromptTemplate(
+                "Break the following task into smaller steps: {task_description}"
+            )
         )
-    )
-    
-    def break_task(task_description: str) -> List[str]:
-        """Breaks a task into actionable steps using Haystack LLM."""
-        if not task_description:
-            return []
+        
+        def break_task(task_description: str) -> List[str]:
+            if not task_description:
+                return []
+                
+            prompt = f"Break the following task into smaller steps: {task_description}"
+            response = task_prompt([prompt])
             
-        prompt = f"Break the following task into smaller steps: {task_description}"
-        response = task_prompt([prompt])
+            if isinstance(response, dict) and "results" in response:
+                steps = response["results"][0].split("\n")
+                return [step.strip() for step in steps if step.strip()]
+            return []
+    except Exception:
         
-        if isinstance(response, dict) and "results" in response:
-            steps = response["results"][0].split("\n")
-            return [step.strip() for step in steps if step.strip()]
-        return []
-        
-except ImportError:
-    # Fallback implementation without Haystack
+        USING_FALLBACK = True
+
+
+if USING_FALLBACK:
     def break_task(task_description: str) -> List[str]:
         """Breaks a task into actionable steps using rule-based approach."""
         if not task_description:
             return []
             
-        # Simple rule-based approach
+       
         task_lower = task_description.lower()
         
         if "research" in task_lower:
