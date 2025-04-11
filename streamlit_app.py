@@ -1,12 +1,15 @@
 import streamlit as st
-import pandas as pd
 import os
-import requests
-from bs4 import BeautifulSoup
 import tempfile
 from backend.task_breakdown import break_task
 from backend.summarization import summarize_documents
-from backend.quiz_generator import generate_questions, get_formatted_questions, record_answer, get_quiz_results, get_quiz_download
+from backend.question_generation import (
+    generate_questions, 
+    get_formatted_questions, 
+    record_answer, 
+    get_quiz_results, 
+    get_quiz_download
+)
 
 # Initialize session state variables
 if 'quiz_started' not in st.session_state:
@@ -19,18 +22,6 @@ if 'content' not in st.session_state:
     st.session_state.content = ""
 if 'formatted_questions' not in st.session_state:
     st.session_state.formatted_questions = []
-
-def fetch_webpage_content(url):
-    """Fetch content from a URL"""
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        paragraphs = soup.find_all("p")
-        text = "\n".join([p.get_text() for p in paragraphs])
-        return text if text else "No readable content found."
-    except requests.RequestException as e:
-        return f"Error fetching webpage: {e}"
 
 def reset_quiz():
     st.session_state.quiz_started = False
@@ -49,6 +40,19 @@ def start_quiz():
     st.session_state.current_question = 0
     st.session_state.quiz_complete = False
 
+# Function to read text from uploaded file
+def read_file_content(uploaded_file):
+    if uploaded_file is None:
+        return ""
+    
+    try:
+        # For simplicity, we'll just read directly
+        content = uploaded_file.getvalue().decode('utf-8', errors='replace')
+        return content
+    except:
+        st.error("Error reading file. Make sure it's a valid text file.")
+        return ""
+
 # Sidebar navigation
 st.sidebar.title('TaskTamer')
 selection = st.sidebar.radio("Go to", ["Home", "Breakdown Activities", "Summary", "Quiz"])
@@ -57,12 +61,7 @@ selection = st.sidebar.radio("Go to", ["Home", "Breakdown Activities", "Summary"
 if selection == "Home":
     st.title('Welcome to TaskTamer')
     st.write('TaskTamer helps you break down complex tasks, summarize documents, and test your knowledge with quizzes.')
-    st.write('Select a feature from the sidebar to get started:')
-    
-    st.subheader('Features:')
-    st.markdown('- **Breakdown Activities**: Split complex tasks into manageable steps')
-    st.markdown('- **Summary**: Get concise summaries of your documents or web content')
-    st.markdown('- **Quiz**: Test your understanding with automatically generated questions')
+    st.write('Select a feature from the sidebar to get started.')
 
 # Breakdown Activities Feature
 elif selection == "Breakdown Activities":
@@ -82,9 +81,9 @@ elif selection == "Breakdown Activities":
 elif selection == "Summary":
     st.title('Document Summary')
     
-    tab1, tab2, tab3 = st.tabs(["Text Input", "File Upload", "Web URL"])
+    content_option = st.radio("Choose content source:", ["Text Input", "File Upload"])
     
-    with tab1:
+    if content_option == "Text Input":
         text_content = st.text_area("Enter content to summarize:", height=250)
         if st.button('Summarize Text'):
             if text_content:
@@ -96,48 +95,25 @@ elif selection == "Summary":
             else:
                 st.warning("Please enter some text to summarize.")
     
-    with tab2:
+    else:  # File Upload
         uploaded_file = st.file_uploader("Upload a document:", type=['txt', 'pdf', 'docx'])
         if uploaded_file is not None:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                tmp_path = tmp_file.name
-            
             if st.button('Summarize File'):
                 with st.spinner('Processing file and generating summary...'):
-                    # For simplicity we'll just read the file as text here
-                    # In a real app, you would use the proper converter from backend_module.py
-                    with open(tmp_path, 'rb') as f:
-                        file_content = f.read().decode('utf-8', errors='replace')
+                    file_content = read_file_content(uploaded_file)
                     st.session_state.content = file_content
                     summary = summarize_documents(file_content)
                     st.subheader("Summary")
                     st.write(summary)
-                    
-                # Clean up the temp file
-                os.unlink(tmp_path)
-    
-    with tab3:
-        url = st.text_input("Enter a URL:")
-        if st.button('Summarize Web Content'):
-            if url:
-                with st.spinner('Fetching and summarizing web content...'):
-                    web_content = fetch_webpage_content(url)
-                    st.session_state.content = web_content
-                    summary = summarize_documents(web_content)
-                    st.subheader("Summary")
-                    st.write(summary)
-            else:
-                st.warning("Please enter a URL.")
 
 # Quiz Feature
 elif selection == "Quiz":
     st.title('Knowledge Quiz')
     
     if not st.session_state.quiz_started:
-        tab1, tab2, tab3 = st.tabs(["Text Input", "File Upload", "Web URL"])
+        content_option = st.radio("Choose content source:", ["Text Input", "File Upload"])
         
-        with tab1:
+        if content_option == "Text Input":
             text_content = st.text_area("Enter content to create a quiz from:", height=250)
             num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5)
             if st.button('Generate Quiz from Text'):
@@ -145,7 +121,7 @@ elif selection == "Quiz":
                     with st.spinner('Generating quiz questions...'):
                         st.session_state.content = text_content
                         questions = generate_questions(text_content, num_questions)
-                        if isinstance(questions, list) and questions:
+                        if questions:
                             st.session_state.formatted_questions = get_formatted_questions()
                             start_quiz()
                         else:
@@ -153,46 +129,20 @@ elif selection == "Quiz":
                 else:
                     st.warning("Please enter some text first.")
         
-        with tab2:
+        else:  # File Upload
             uploaded_file = st.file_uploader("Upload a document:", type=['txt', 'pdf', 'docx'])
-            num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5, key="file_q_slider")
+            num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5)
             if uploaded_file is not None:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
-                    tmp_file.write(uploaded_file.getvalue())
-                    tmp_path = tmp_file.name
-                
                 if st.button('Generate Quiz from File'):
                     with st.spinner('Processing file and generating quiz...'):
-                        # For simplicity we'll just read the file as text here
-                        with open(tmp_path, 'rb') as f:
-                            file_content = f.read().decode('utf-8', errors='replace')
+                        file_content = read_file_content(uploaded_file)
                         st.session_state.content = file_content
                         questions = generate_questions(file_content, num_questions)
-                        if isinstance(questions, list) and questions:
+                        if questions:
                             st.session_state.formatted_questions = get_formatted_questions()
                             start_quiz()
                         else:
                             st.error("Failed to generate questions. Please provide more detailed content.")
-                            
-                    # Clean up the temp file
-                    os.unlink(tmp_path)
-        
-        with tab3:
-            url = st.text_input("Enter a URL:")
-            num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5, key="url_q_slider")
-            if st.button('Generate Quiz from Web Content'):
-                if url:
-                    with st.spinner('Fetching content and generating quiz...'):
-                        web_content = fetch_webpage_content(url)
-                        st.session_state.content = web_content
-                        questions = generate_questions(web_content, num_questions)
-                        if isinstance(questions, list) and questions:
-                            st.session_state.formatted_questions = get_formatted_questions()
-                            start_quiz()
-                        else:
-                            st.error("Failed to generate questions. Please provide more detailed content.")
-                else:
-                    st.warning("Please enter a URL.")
     
     # Display quiz if started
     elif st.session_state.quiz_started and not st.session_state.quiz_complete:
@@ -246,34 +196,31 @@ elif selection == "Quiz":
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("Download as CSV"):
-                csv_data = get_quiz_download(format='csv')
-                st.download_button(
-                    label="Download CSV",
-                    data=csv_data,
-                    file_name="task_tamer_quiz.csv",
-                    mime="text/csv"
-                )
+            csv_data = get_quiz_download(format='csv')
+            st.download_button(
+                label="Download CSV",
+                data=csv_data,
+                file_name="task_tamer_quiz.csv",
+                mime="text/csv"
+            )
         
         with col2:
-            if st.button("Download as JSON"):
-                json_data = get_quiz_download(format='json')
-                st.download_button(
-                    label="Download JSON",
-                    data=json_data,
-                    file_name="task_tamer_quiz.json",
-                    mime="application/json"
-                )
+            json_data = get_quiz_download(format='json')
+            st.download_button(
+                label="Download JSON",
+                data=json_data,
+                file_name="task_tamer_quiz.json",
+                mime="application/json"
+            )
         
         with col3:
-            if st.button("Download as Text"):
-                text_data = get_quiz_download(format='text')
-                st.download_button(
-                    label="Download Text",
-                    data=text_data,
-                    file_name="task_tamer_quiz.txt",
-                    mime="text/plain"
-                )
+            text_data = get_quiz_download(format='text')
+            st.download_button(
+                label="Download Text",
+                data=text_data,
+                file_name="task_tamer_quiz.txt",
+                mime="text/plain"
+            )
         
         # Option to restart
         if st.button("Start New Quiz"):
