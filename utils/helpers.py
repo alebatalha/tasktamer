@@ -1,6 +1,7 @@
 import re
 import json
 import os
+import streamlit as st
 from typing import List, Dict, Any, Union
 
 def is_valid_url(url: str) -> bool:
@@ -37,36 +38,12 @@ def load_from_json(filename: str) -> Union[Dict, List, None]:
     except Exception:
         return None
 
-def clean_text(text: str) -> str:
-    text = re.sub(r'\s+', ' ', text)
-    text = text.strip()
-    return text
-
-def truncate_text(text: str, max_length: int = 100) -> str:
-    if len(text) <= max_length:
-        return text
-    return text[:max_length] + "..."
-
-def format_file_size(size_bytes: int) -> str:
-    if size_bytes < 1024:
-        return f"{size_bytes} bytes"
-    elif size_bytes < 1024 * 1024:
-        return f"{size_bytes / 1024:.1f} KB"
-    elif size_bytes < 1024 * 1024 * 1024:
-        return f"{size_bytes / (1024 * 1024):.1f} MB"
-    else:
-        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"# utils/helpers.py - Add these functions
-import streamlit as st
-import os
-
 def ensure_directories(*dirs):
-    """Ensures that directories exist, creating them if needed."""
     for directory in dirs:
         os.makedirs(directory, exist_ok=True)
     return True
 
 def handle_file_upload(uploaded_file):
-    """Processes an uploaded file and returns its content."""
     if uploaded_file is None:
         return None
         
@@ -74,11 +51,9 @@ def handle_file_upload(uploaded_file):
         content = uploaded_file.getvalue().decode("utf-8")
         return content
     except UnicodeDecodeError:
-        # For binary files
         return uploaded_file.getvalue()
 
 def clear_session_state(*keys):
-    """Clears specific keys from session state."""
     for key in keys:
         if key in st.session_state:
             del st.session_state[key]

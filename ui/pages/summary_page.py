@@ -2,17 +2,7 @@ import streamlit as st
 from backend.summarization import summarize_content
 from ui.styles import main_header, section_header, warning_box, success_box
 import re
-
-def is_valid_url(url):
-    url_pattern = re.compile(
-        r'^(https?:\/\/)?' 
-        r'(www\.)?' 
-        r'([a-zA-Z0-9-]+\.)+'
-        r'[a-zA-Z]{2,}'
-        r'(\/[a-zA-Z0-9-._~:/?#[\]@!$&\'()*+,;=]*)?' 
-        r'$'
-    )
-    return bool(url_pattern.match(url))
+from utils.helpers import is_valid_url
 
 def render_summary_page():
     main_header("Content Summarizer")

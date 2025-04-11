@@ -3,11 +3,11 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse
-from utils.fallback_detector import USING_FALLBACK
+from utils.fallback_detector import HAYSTACK_AVAILABLE, YOUTUBE_API_AVAILABLE
 from config import YOUTUBE_API_KEY
+from backend.core import tamer
 
 def fetch_webpage_content(url: str) -> str:
-    """Fetches and extracts text content from a web page."""
     try:
         response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
         response.raise_for_status()
@@ -29,36 +29,31 @@ def fetch_webpage_content(url: str) -> str:
         return f"Error fetching webpage: {e}"
 
 def extract_youtube_id(url: str) -> Union[str, None]:
-    """Extracts YouTube video ID from a URL."""
     youtube_regex = r'(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
     match = re.search(youtube_regex, url)
     return match.group(1) if match else None
 
 def get_youtube_captions(youtube_url: str) -> str:
-    """Fetches captions from YouTube videos."""
+    if not YOUTUBE_API_AVAILABLE:
+        return "YouTube transcript functionality requires youtube_transcript_api. Please install it using pip."
+        
     try:
         video_id = extract_youtube_id(youtube_url)
         if not video_id:
             return "Invalid YouTube URL"
             
-        # Try using youtube_transcript_api if available
-        try:
-            from youtube_transcript_api import YouTubeTranscriptApi
-            
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-            transcript = transcript_list.find_transcript(['en'])
-            
-            captions = transcript.fetch()
-            text = " ".join([item['text'] for item in captions])
-            return text
-        except ImportError:
-            # Fall back to message if API not available
-            return "YouTube transcript functionality requires youtube_transcript_api. Please install it using pip."
+        from youtube_transcript_api import YouTubeTranscriptApi
+        
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript = transcript_list.find_transcript(['en'])
+        
+        captions = transcript.fetch()
+        text = " ".join([item['text'] for item in captions])
+        return text
     except Exception as e:
         return f"Error retrieving YouTube captions: {str(e)}"
 
 def process_url(url: str) -> str:
-    """Processes different types of URLs to extract content."""
     parsed_url = urlparse(url)
     domain = parsed_url.netloc.lower()
     
@@ -67,11 +62,27 @@ def process_url(url: str) -> str:
     else:
         return fetch_webpage_content(url)
 
-if not USING_FALLBACK:
+def simple_summarize(content: str) -> str:
+    if not content:
+        return "No content provided for summarization."
+            
+    sentences = re.split(r'(?<=[.!?])\s+', content)
+        
+    if len(sentences) <= 3:
+        return content
+            
+    summary_sentences = [
+        sentences[0],
+        sentences[len(sentences) // 2],
+        sentences[-1]
+    ]
+        
+    return " ".join(summary_sentences)
+
+if HAYSTACK_AVAILABLE:
     try:
         from haystack.nodes import PromptNode, PromptTemplate
         from config import LLM_MODEL
-        from backend.core import tamer
         
         summary_prompt = PromptNode(
             model_name_or_path=LLM_MODEL,
@@ -81,46 +92,31 @@ if not USING_FALLBACK:
         )
         
         def summarize_content(content: str = None, url: str = None) -> str:
+            try:
+                if url:
+                    content = process_url(url)
+                
+                if not content:
+                    return "No content provided for summarization."
+                    
+                processed_docs = tamer.process_text(content)
+                if not processed_docs:
+                    return "Failed to process the content."
+                    
+                summary = summary_prompt(documents=processed_docs)
+                
+                if isinstance(summary, dict) and "results" in summary:
+                    return summary["results"][0]
+                return simple_summarize(content)
+            except Exception:
+                return simple_summarize(content)
+    except Exception:
+        def summarize_content(content: str = None, url: str = None) -> str:
             if url:
                 content = process_url(url)
-            
-            if not content:
-                return "No content provided for summarization."
-                
-            processed_docs = tamer.process_text(content)
-            if not processed_docs:
-                return "Failed to process the content."
-                
-            summary = summary_prompt(documents=processed_docs)
-            
-            if isinstance(summary, dict) and "results" in summary:
-                return summary["results"][0]
-            return "Failed to generate summary."
-    except Exception:
-        # Fall back to simple implementation if there's any error with Haystack
-        USING_FALLBACK = True
-
-# Simple fallback implementation
-if USING_FALLBACK:
+            return simple_summarize(content)
+else:
     def summarize_content(content: str = None, url: str = None) -> str:
-        """Summarizes content using simple extraction approach."""
         if url:
             content = process_url(url)
-                
-        if not content:
-            return "No content provided for summarization."
-                
-        # Simple extractive summarization
-        sentences = re.split(r'(?<=[.!?])\s+', content)
-            
-        if len(sentences) <= 3:
-            return content
-                
-        # Extract first sentence, a middle sentence, and the last sentence
-        summary_sentences = [
-            sentences[0],
-            sentences[len(sentences) // 2],
-            sentences[-1]
-        ]
-            
-        return " ".join(summary_sentences)
+        return simple_summarize(content)

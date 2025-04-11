@@ -1,19 +1,8 @@
 import streamlit as st
 from backend.quiz_generator import generate_quiz
 from ui.styles import main_header, section_header, warning_box, success_box
-import re
 import json
-
-def is_valid_url(url):
-    url_pattern = re.compile(
-        r'^(https?:\/\/)?' 
-        r'(www\.)?' 
-        r'([a-zA-Z0-9-]+\.)+'
-        r'[a-zA-Z]{2,}'
-        r'(\/[a-zA-Z0-9-._~:/?#[\]@!$&\'()*+,;=]*)?' 
-        r'$'
-    )
-    return bool(url_pattern.match(url))
+from utils.helpers import is_valid_url
 
 def render_quiz_page():
     main_header("Quiz Generator")
