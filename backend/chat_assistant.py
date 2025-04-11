@@ -8,6 +8,7 @@ from config import LLM_MODEL
 from backend.core import tamer
 import googleapiclient.discovery
 import googleapiclient.errors
+from haystack.nodes import PromptNode
 
 summary_prompt = PromptNode(
     model_name_or_path=LLM_MODEL,

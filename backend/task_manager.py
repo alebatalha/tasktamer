@@ -1,5 +1,6 @@
 from typing import List
 from utils.fallback_detector import USING_FALLBACK
+from haystack.nodes import PromptNode
 
 if not USING_FALLBACK:
     try:

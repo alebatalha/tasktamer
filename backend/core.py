@@ -1,6 +1,7 @@
 from haystack.document_stores import InMemoryDocumentStore
 from haystack.nodes import PreProcessor
 from typing import List, Dict, Any, Union
+from haystack.nodes import PromptNode
 
 class TaskTamer:
     def __init__(self):

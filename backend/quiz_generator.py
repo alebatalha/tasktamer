@@ -4,6 +4,8 @@ import json
 from utils.fallback_detector import USING_FALLBACK
 from config import MAX_QUIZ_QUESTIONS
 from backend.summarization import process_url
+from haystack.nodes import PromptNode
+
 
 if not USING_FALLBACK:
     try:
