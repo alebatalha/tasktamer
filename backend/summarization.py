@@ -3,8 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from urllib.parse import urlparse
-from utils.fallback_detector import HAYSTACK_AVAILABLE, YOUTUBE_API_AVAILABLE
-from config import YOUTUBE_API_KEY
+from utils.fallback_detector import HAYSTACK_AVAILABLE
 from backend.core import tamer
 
 def fetch_webpage_content(url: str) -> str:
@@ -28,39 +27,8 @@ def fetch_webpage_content(url: str) -> str:
     except requests.RequestException as e:
         return f"Error fetching webpage: {e}"
 
-def extract_youtube_id(url: str) -> Union[str, None]:
-    youtube_regex = r'(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
-    match = re.search(youtube_regex, url)
-    return match.group(1) if match else None
-
-def get_youtube_captions(youtube_url: str) -> str:
-    if not YOUTUBE_API_AVAILABLE:
-        return "YouTube transcript functionality requires youtube_transcript_api. Please install it using pip."
-        
-    try:
-        video_id = extract_youtube_id(youtube_url)
-        if not video_id:
-            return "Invalid YouTube URL"
-            
-        from youtube_transcript_api import YouTubeTranscriptApi
-        
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        transcript = transcript_list.find_transcript(['en'])
-        
-        captions = transcript.fetch()
-        text = " ".join([item['text'] for item in captions])
-        return text
-    except Exception as e:
-        return f"Error retrieving YouTube captions: {str(e)}"
-
 def process_url(url: str) -> str:
-    parsed_url = urlparse(url)
-    domain = parsed_url.netloc.lower()
-    
-    if 'youtube.com' in domain or 'youtu.be' in domain:
-        return get_youtube_captions(url)
-    else:
-        return fetch_webpage_content(url)
+    return fetch_webpage_content(url)
 
 def simple_summarize(content: str) -> str:
     if not content:

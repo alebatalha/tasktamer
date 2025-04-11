@@ -7,7 +7,7 @@ from utils.helpers import is_valid_url
 def render_summary_page():
     main_header("Content Summarizer")
     
-    st.write("Summarize text, web pages, or YouTube videos")
+    st.write("Summarize text or web pages")
     
     tab1, tab2 = st.tabs(["Text Input", "URL"])
     
@@ -41,8 +41,8 @@ def render_summary_page():
     
     with tab2:
         url = st.text_input(
-            "Enter a webpage or YouTube URL:",
-            help="Works with most websites and YouTube videos"
+            "Enter a webpage URL:",
+            help="Works with most websites"
         )
         
         if st.button("Summarize URL"):
