@@ -1,4 +1,3 @@
-"""UI components package for TaskTamer."""
 from .cards import feature_card
 from .inputs import content_input_section
 

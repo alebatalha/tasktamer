@@ -1,158 +1,124 @@
-"""
-Quiz page UI for TaskTamer.
-"""
 import streamlit as st
-import time
-from ..styles import render_header, render_divider, result_container_start, result_container_end
-from ..components.inputs import content_input_section
+from backend.quiz_generator import generate_quiz
+from ui.styles import main_header, section_header, warning_box, success_box
+import re
+import json
 
-def show_quiz_page(task_tamer):
-    """
-    Display the quiz interface.
+def is_valid_url(url):
+    url_pattern = re.compile(
+        r'^(https?:\/\/)?' 
+        r'(www\.)?' 
+        r'([a-zA-Z0-9-]+\.)+'
+        r'[a-zA-Z]{2,}'
+        r'(\/[a-zA-Z0-9-._~:/?#[\]@!$&\'()*+,;=]*)?' 
+        r'$'
+    )
+    return bool(url_pattern.match(url))
+
+def render_quiz_page():
+    main_header("Quiz Generator")
     
-    Args:
-        task_tamer: TaskTamer instance for backend functionality
-    """
-    render_header("🧠 Quiz Master", "Create quizzes to test your knowledge")
+    st.write("Create quizzes from text, web pages, or YouTube videos")
     
-    # Check if we're in quiz taking mode
-    if "quiz_questions" in st.session_state and "taking_quiz" in st.session_state and st.session_state.taking_quiz:
-        _run_quiz()
-        return
+    tab1, tab2 = st.tabs(["Text Input", "URL"])
     
-    # Check if we're showing quiz results
-    if "quiz_questions" in st.session_state and not st.session_state.get("taking_quiz", False):
-        _display_quiz_results()
-        return
-    
-    # Get content from input section
-    content = content_input_section(task_tamer)
-    
-    col1, col2 = st.columns([1, 3])
-    
-    with col1:
-        if st.button("Generate Quiz", key="generate_quiz"):
-            if not content:
-                st.error("No content to generate questions from. Please provide some text, upload a file, or enter a valid URL.")
-            else:
-                with st.spinner("🧙‍♂️ Crafting your quiz..."):
-                    # Add slight delay for visual effect
-                    time.sleep(0.5)
-                    questions = task_tamer.generate_questions(content)
+    with tab1:
+        text_content = st.text_area(
+            "Enter the content you want to create a quiz from:", 
+            height=200,
+            help="Paste the text you want to create a quiz from"
+        )
+        
+        num_questions = st.slider("Number of questions", 1, 10, 3)
+        
+        if st.button("Generate Quiz", key="text_quiz_btn"):
+            if not text_content:
+                warning_box("Please enter some text to generate a quiz from")
+                return
                 
-                if questions:
-                    st.session_state.quiz_questions = questions
-                    st.session_state.quiz_score = 0
-                    st.session_state.current_question = 0
-                    st.session_state.taking_quiz = True
-                    st.rerun()
-                else:
-                    st.error("Could not generate questions from the provided content. Please try different material.")
+            with st.spinner("Generating quiz..."):
+                quiz = generate_quiz(content=text_content, num_questions=num_questions)
+                
+            display_quiz(quiz)
     
-    with col2:
-        if st.button("🏠 Back to Home", key="back_home_quiz"):
-            st.session_state.current_feature = None
-            st.rerun()
+    with tab2:
+        url = st.text_input(
+            "Enter a webpage or YouTube URL:",
+            help="Works with most websites and YouTube videos"
+        )
+        
+        num_questions = st.slider("Number of questions", 1, 10, 3, key="url_num_q")
+        
+        if st.button("Generate Quiz", key="url_quiz_btn"):
+            if not url:
+                warning_box("Please enter a URL")
+                return
+                
+            if not is_valid_url(url):
+                warning_box("Please enter a valid URL")
+                return
+                
+            with st.spinner("Fetching content and generating quiz..."):
+                quiz = generate_quiz(url=url, num_questions=num_questions)
+                
+            display_quiz(quiz)
 
-def _run_quiz():
-    """Run the quiz interface when in quiz-taking mode."""
-    questions = st.session_state.quiz_questions
-    current = st.session_state.current_question
+def display_quiz(quiz_data):
+    if not quiz_data:
+        warning_box("Could not generate quiz. Please try with different content.")
+        return
+        
+    section_header("Your Quiz")
     
-    # Quiz progress
-    progress = (current + 1) / len(questions)
-    st.progress(progress)
-    st.write(f"Question {current + 1} of {len(questions)}")
+    if "quiz_answers" not in st.session_state:
+        st.session_state.quiz_answers = {}
+        st.session_state.quiz_submitted = False
+        st.session_state.quiz_score = 0
     
-    # Display current question
-    q = questions[current]
-    st.markdown(f"### {q['question']}")
-    
-    # Display options
-    answer = st.radio("Select your answer:", q['options'], key=f"q_{current}")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("Submit Answer"):
-            if answer == q['answer']:
-                st.success("✅ Correct!")
-                if not st.session_state.get(f"answered_{current}", False):
-                    st.session_state.quiz_score += 1
-                    st.session_state[f"answered_{current}"] = True
-            else:
-                st.error(f"❌ Incorrect. The correct answer is: {q['answer']}")
-                st.session_state[f"answered_{current}"] = True
-    
-    # Navigation buttons
-    nav_col1, nav_col2, nav_col3 = st.columns([1, 1, 2])
-    
-    with nav_col1:
-        if current > 0:
-            if st.button("◀️ Previous"):
-                st.session_state.current_question = current - 1
-                st.rerun()
-    
-    with nav_col2:
-        if current < len(questions) - 1:
-            if st.button("Next ▶️"):
-                st.session_state.current_question = current + 1
-                st.rerun()
-    
-    with nav_col3:
-        if st.button("End Quiz"):
-            st.session_state.taking_quiz = False
-            st.rerun()
-    
-    # Show score at the bottom
-    render_divider()
-    st.write(f"Current score: {st.session_state.quiz_score}/{len(questions)}")
-
-def _display_quiz_results():
-    """Display quiz results after completion."""
-    result_container_start()
-    st.markdown("### Quiz Results")
-    
-    score = st.session_state.quiz_score
-    total = len(st.session_state.quiz_questions)
-    percentage = (score / total) * 100
-    
-    st.markdown(f"<h2 class='success-text'>Your Score: {score}/{total} ({percentage:.1f}%)</h2>", unsafe_allow_html=True)
-    
-    # Display all questions with correct answers
-    st.markdown("### Review Questions")
-    
-    for i, q in enumerate(st.session_state.quiz_questions):
-        with st.expander(f"Question {i+1}: {q['question']}"):
-            st.write("**Options:**")
-            for option in q['options']:
-                if option == q['answer']:
-                    st.markdown(f"- ✅ **{option}** (Correct Answer)")
-                else:
-                    st.write(f"- {option}")
+    for i, question in enumerate(quiz_data):
+        st.subheader(f"Question {i+1}")
+        st.write(question.get("question", ""))
+        
+        options = question.get("options", [])
+        if options:
+            answer_key = f"q_{i}"
+            st.session_state.quiz_answers[answer_key] = question.get("answer", "")
             
-            # Show if user got it right
-            user_answer = st.session_state.get(f"q_{i}", None)
-            if user_answer == q['answer']:
-                st.success("You answered this correctly!")
-            elif user_answer:
-                st.error(f"You selected: {user_answer}")
+            selected = st.radio(
+                "Select your answer:",
+                options,
+                key=f"quiz_{i}"
+            )
     
-    result_container_end()
+    if st.button("Submit Quiz"):
+        st.session_state.quiz_submitted = True
+        st.session_state.quiz_score = 0
+        
+        for i in range(len(quiz_data)):
+            answer_key = f"q_{i}"
+            selected = st.session_state[f"quiz_{i}"]
+            
+            if selected == st.session_state.quiz_answers[answer_key]:
+                st.session_state.quiz_score += 1
+        
+        score_percentage = (st.session_state.quiz_score / len(quiz_data)) * 100
+        success_box(f"Your score: {st.session_state.quiz_score}/{len(quiz_data)} ({score_percentage:.1f}%)")
+        
+        for i in range(len(quiz_data)):
+            answer_key = f"q_{i}"
+            selected = st.session_state[f"quiz_{i}"]
+            correct = st.session_state.quiz_answers[answer_key]
+            
+            if selected == correct:
+                st.success(f"Question {i+1}: Correct!")
+            else:
+                st.error(f"Question {i+1}: Incorrect. The correct answer is: {correct}")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("Try New Quiz"):
-            for key in ['quiz_questions', 'quiz_score', 'current_question', 'taking_quiz']:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
-    
-    with col2:
-        if st.button("🏠 Back to Home", key="quiz_results_home"):
-            st.session_state.current_feature = None
-            for key in ['quiz_questions', 'quiz_score', 'current_question', 'taking_quiz']:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
+    if st.button("Download Quiz"):
+        quiz_json = json.dumps(quiz_data, indent=2)
+        st.download_button(
+            label="Download as JSON",
+            data=quiz_json,
+            file_name="quiz.json",
+            mime="application/json"
+        )

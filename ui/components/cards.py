@@ -1,21 +1,28 @@
-"""
-Card UI components for TaskTamer.
-"""
 import streamlit as st
-from ..styles import render_card
 
-def feature_card(icon, title, description, key):
-    """
-    Create a feature card component with a button.
+def feature_card(title, description, icon="🔍", on_click=None):
+    col1, col2 = st.columns([1, 3])
     
-    Args:
-        icon: Icon to display (emoji)
-        title: Card title
-        description: Card description
-        key: Unique key for the button
-        
-    Returns:
-        bool: True if the card button was clicked
-    """
-    st.markdown(render_card(icon, title, description, key), unsafe_allow_html=True)
-    return st.button(f"Use {title}", key=key)
+    with col1:
+        st.markdown(f"<h1 style='text-align: center; font-size: 2.5rem;'>{icon}</h1>", unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"<h3>{title}</h3>", unsafe_allow_html=True)
+        st.write(description)
+    
+    if on_click:
+        st.button(f"Try {title}", key=f"btn_{title}", on_click=on_click)
+    
+    st.markdown("---")
+
+def result_card(title, content, allow_download=True, filename="download.txt"):
+    st.markdown(f"<h3>{title}</h3>", unsafe_allow_html=True)
+    st.write(content)
+    
+    if allow_download:
+        st.download_button(
+            label="Download",
+            data=content,
+            file_name=filename,
+            mime="text/plain"
+        )

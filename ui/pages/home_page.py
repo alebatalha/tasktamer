@@ -1,38 +1,38 @@
-"""
-Home page UI for TaskTamer application.
-"""
 import streamlit as st
-from ..styles import render_header
-from ..components.cards import feature_card
+from ui.styles import main_header, info_box
 
-def show_home_page(task_tamer):
-    """
-    Display the home page with feature cards.
+def render_home_page():
+    main_header("Welcome to TaskTamer")
     
-    Args:
-        task_tamer: TaskTamer instance to check feature availability
-    """
-    render_header("✨ TaskTamer ✨", "Your magical productivity assistant")
+    st.write("TaskTamer is your personal productivity assistant that helps you break down complex tasks, summarize information, and generate quizzes.")
     
-    st.markdown("<p>Choose a magical tool to help with your tasks:</p>", unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
-        if feature_card("📋", "Task Breaker", "Break complex tasks into manageable steps", "task_breakdown"):
-            st.session_state.current_feature = "task_breakdown"
-            st.rerun()
-    
+        st.subheader("Task Breakdown")
+        st.write("Turn overwhelming tasks into manageable steps")
+        if st.button("Try Task Breakdown", key="task_btn"):
+            st.session_state["navigation"] = "Task Breakdown"
+            st.experimental_rerun()
+            
+        st.subheader("Summarization")
+        st.write("Extract key insights from text, web pages, or YouTube videos")
+        if st.button("Try Summarization", key="summary_btn"):
+            st.session_state["navigation"] = "Summarization"
+            st.experimental_rerun()
+            
     with col2:
-        if feature_card("📝", "Summarizer", "Generate concise summaries of your documents", "summarizer"):
-            st.session_state.current_feature = "summarizer"
-            st.rerun()
+        st.subheader("Quiz Generator")
+        st.write("Create quizzes from your learning materials")
+        if st.button("Try Quiz Generator", key="quiz_btn"):
+            st.session_state["navigation"] = "Quiz Generator"
+            st.experimental_rerun()
     
-    with col3:
-        if feature_card("🧠", "Quiz Master", "Create quizzes to test your knowledge", "quiz"):
-            st.session_state.current_feature = "quiz"
-            st.rerun()
-    
-    # Display feature status
-    if not task_tamer.is_advanced_available():
-        st.warning("⚠️ Running in simplified mode. Some features may have limited functionality.")
+    info_box("""
+    <b>Getting Started:</b>
+    <ol>
+        <li>Select a feature from the sidebar</li>
+        <li>Enter your task or content</li>
+        <li>Get instant results!</li>
+    </ol>
+    """)

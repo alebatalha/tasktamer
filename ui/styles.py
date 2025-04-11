@@ -1,172 +1,65 @@
-"""
-Styles module for TaskTamer.
-Contains all CSS and styling-related functions.
-"""
 import streamlit as st
 
-def apply_custom_css():
-    """Apply custom CSS to the Streamlit app."""
+def apply_styles():
     st.markdown("""
     <style>
-        /* Main container styling */
-        .main {
-            background-color: #f8f9fa;
-        }
-        
-        /* Header styling */
-        h1 {
-            color: #4a154b;
-            font-weight: 700;
-        }
-        
-        /* Form styling */
-        .stTextInput, .stTextArea {
-            border-radius: 10px;
-        }
-        
-        /* Button styling */
-        .stButton>button {
-            background-color: #4a154b;
-            color: white;
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            font-weight: 600;
-            border: none;
-        }
-        
-        .stButton>button:hover {
-            background-color: #611f69;
-        }
-        
-        /* Card styling */
-        .css-card {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Success text */
-        .success-text {
-            color: #28a745;
-            font-weight: 600;
-        }
-        
-        /* Main header */
         .main-header {
-            text-align: center;
-            margin-bottom: 2rem;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
         }
         
-        /* Divider */
-        .divider {
-            margin: 2rem 0;
-            border-bottom: 1px solid #ddd;
+        .section-header {
+            font-size: 1.8rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
         }
         
-        /* Feature icon */
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
+        .info-box {
+            background-color: #f0f2f6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
         }
         
-        /* Result container */
-        .result-container {
+        .success-box {
+            background-color: #d1e7dd;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .warning-box {
+            background-color: #fff3cd;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .task-item {
             background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        /* Chat styling */
-        .stChatFloatingInputContainer {
-            border-radius: 20px;
-            border: 1px solid #ddd;
-        }
-        
-        .stChatMessage {
-            background-color: #f9f9f9;
-            border-radius: 15px;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .stChatMessageContent {
-            color: #333;
-        }
-        
-        /* Assistant message */
-        .stChatMessage[data-testid="assistant"] {
-            background-color: #f0e6f5; /* Light purple for assistant */
-        }
-        
-        /* User message */
-        .stChatMessage[data-testid="user"] {
-            background-color: #e6f5f0; /* Light green for user */
-        }
-        
-        /* Chat container */
-        .chat-container {
-            margin-top: 40px;
-            padding: 20px;
-            border-radius: 15px;
-            background-color: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Chat input */
-        .stChatInputContainer {
-            padding-bottom: 10px;
+            border-left: 4px solid #4b6fff;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0 0.25rem 0.25rem 0;
         }
     </style>
     """, unsafe_allow_html=True)
 
-def render_header(title, subtitle=None):
-    """
-    Render a header with optional subtitle.
-    
-    Args:
-        title: The main title text
-        subtitle: Optional subtitle text
-    """
-    st.markdown(f"""
-    <div class="main-header">
-        <h1>{title}</h1>
-        {f"<p>{subtitle}</p>" if subtitle else ""}
-    </div>
-    """, unsafe_allow_html=True)
+def main_header(text):
+    st.markdown(f'<h1 class="main-header">{text}</h1>', unsafe_allow_html=True)
 
-def render_card(icon, title, description, key=None):
-    """
-    Render a card with icon, title, and description.
-    
-    Args:
-        icon: The icon to display (emoji)
-        title: The card title
-        description: The card description
-        key: Optional unique key for the card
-        
-    Returns:
-        str: HTML for the card
-    """
-    card_id = key if key else f"card_{title.lower().replace(' ', '_')}"
-    return f"""
-    <div class="css-card" id="{card_id}">
-        <div class="feature-icon">{icon}</div>
-        <h3>{title}</h3>
-        <p>{description}</p>
-    </div>
-    """
+def section_header(text):
+    st.markdown(f'<h2 class="section-header">{text}</h2>', unsafe_allow_html=True)
 
-def render_divider():
-    """Render a horizontal divider."""
-    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+def info_box(text):
+    st.markdown(f'<div class="info-box">{text}</div>', unsafe_allow_html=True)
 
-def result_container_start():
-    """Start a result container section."""
-    st.markdown("<div class='result-container'>", unsafe_allow_html=True)
+def success_box(text):
+    st.markdown(f'<div class="success-box">{text}</div>', unsafe_allow_html=True)
 
-def result_container_end():
-    """End a result container section."""
-    st.markdown("</div>", unsafe_allow_html=True)
+def warning_box(text):
+    st.markdown(f'<div class="warning-box">{text}</div>', unsafe_allow_html=True)
+
+def task_item(text, idx=None):
+    prefix = f"{idx}. " if idx is not None else ""
+    st.markdown(f'<div class="task-item">{prefix}{text}</div>', unsafe_allow_html=True)

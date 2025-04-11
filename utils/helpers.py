@@ -1,96 +1,58 @@
-"""
-Helper functions for TaskTamer application.
-"""
+import re
+import json
 import os
-import tempfile
-import streamlit as st
-from typing import Dict, Any, List, Optional
+from typing import List, Dict, Any, Union
 
-def ensure_directories():
-    """Ensure all required directories exist."""
-    os.makedirs("temp", exist_ok=True)
+def is_valid_url(url: str) -> bool:
+    url_pattern = re.compile(
+        r'^(https?:\/\/)?' 
+        r'(www\.)?' 
+        r'([a-zA-Z0-9-]+\.)+'
+        r'[a-zA-Z]{2,}'
+        r'(\/[a-zA-Z0-9-._~:/?#[\]@!$&\'()*+,;=]*)?' 
+        r'$'
+    )
+    return bool(url_pattern.match(url))
 
-def handle_file_upload(uploaded_file, supported_types: List[str] = None) -> Optional[str]:
-    """
-    Process an uploaded file and return its content.
-    
-    Args:
-        uploaded_file: The uploaded file from st.file_uploader
-        supported_types: List of supported file extensions (without dot)
-        
-    Returns:
-        str: Content of the file or None if processing failed
-    """
-    if not uploaded_file:
-        return None
-    
-    if supported_types is None:
-        supported_types = ["txt", "pdf"]
-    
-    file_extension = uploaded_file.name.split(".")[-1].lower()
-    
-    if file_extension not in supported_types:
-        st.error(f"Unsupported file type. Please upload one of: {', '.join(supported_types)}")
-        return None
-    
+def extract_youtube_id(url: str) -> Union[str, None]:
+    youtube_regex = r'(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
+    match = re.search(youtube_regex, url)
+    return match.group(1) if match else None
+
+def save_to_json(data: Any, filename: str) -> bool:
     try:
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_extension}") as tmp_file:
-            tmp_file.write(uploaded_file.getbuffer())
-            file_path = tmp_file.name
-        
-        # For simple text files, read directly
-        if file_extension == "txt":
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read()
-            os.unlink(file_path)  # Delete the temp file
-            return content
-            
-        # For PDF files, extract text
-        elif file_extension == "pdf":
-            try:
-                # Try using PyPDF2
-                import PyPDF2
-                content = ""
-                with open(file_path, 'rb') as f:
-                    pdf_reader = PyPDF2.PdfReader(f)
-                    for page_num in range(len(pdf_reader.pages)):
-                        page = pdf_reader.pages[page_num]
-                        content += page.extract_text() + "\n\n"
-                os.unlink(file_path)  # Delete the temp file
-                return content
-            except ImportError:
-                try:
-                    # Try using pdfplumber instead
-                    import pdfplumber
-                    content = ""
-                    with pdfplumber.open(file_path) as pdf:
-                        for page in pdf.pages:
-                            content += page.extract_text() + "\n\n"
-                    os.unlink(file_path)  # Delete the temp file
-                    return content
-                except ImportError:
-                    st.warning("PDF processing libraries not found. Please install PyPDF2 or pdfplumber for PDF processing.")
-                    os.unlink(file_path)  # Delete the temp file
-                    return "Unable to extract PDF text. Please install PyPDF2 or pdfplumber."
-    
-    except Exception as e:
-        st.error(f"Error processing file: {str(e)}")
-        return None
-    
-    finally:
-        # Make sure we clean up the temp file if it exists
-        if 'file_path' in locals() and os.path.exists(file_path):
-            os.unlink(file_path)
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+        return True
+    except Exception:
+        return False
 
-def clear_session_state(keys: List[str] = None):
-    """
-    Clear specific keys from session state.
-    
-    Args:
-        keys: List of keys to clear. If None, no keys are cleared.
-    """
-    if keys:
-        for key in keys:
-            if key in st.session_state:
-                del st.session_state[key]
+def load_from_json(filename: str) -> Union[Dict, List, None]:
+    if not os.path.exists(filename):
+        return None
+        
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+def clean_text(text: str) -> str:
+    text = re.sub(r'\s+', ' ', text)
+    text = text.strip()
+    return text
+
+def truncate_text(text: str, max_length: int = 100) -> str:
+    if len(text) <= max_length:
+        return text
+    return text[:max_length] + "..."
+
+def format_file_size(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f"{size_bytes} bytes"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"

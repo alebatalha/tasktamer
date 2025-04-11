@@ -1,167 +1,107 @@
-# backend/summarization.py
-import re
+from haystack.nodes import PromptNode, PromptTemplate
+from typing import List, Dict, Any, Union
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, parse_qs
+import re
+from urllib.parse import urlparse
+from config import LLM_MODEL
+from backend.core import tamer
+import googleapiclient.discovery
+import googleapiclient.errors
 
-def summarize_documents(text):
-    """Creates a simple summary of text without using external AI libraries.
-    This is a placeholder that extracts important sentences from the document."""
-    if not text or len(text.strip()) < 50:
-        return "The provided content is too short to summarize. Please provide more text."
-    
-    # Simple extractive summarization approach
-    # Split text into sentences
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
-    
-    if not sentences:
-        return "Could not extract valid sentences for summarization."
-    
-    # Score sentences based on simple heuristics
-    scored_sentences = []
-    for i, sentence in enumerate(sentences):
-        score = 0
-        
-        # Position score - earlier sentences often contain important information
-        position_score = a = 1.0 if i < 3 else 0.5 if i < 5 else 0.3
-        score += position_score
-        
-        # Length score - not too short, not too long
-        words = sentence.split()
-        length_score = 0.5 if 5 <= len(words) <= 25 else 0.2
-        score += length_score
-        
-        # Keyword score - contains important-sounding words
-        important_keywords = ["important", "significant", "key", "main", "critical", "essential", "primary", "major", "crucial"]
-        keyword_score = sum(1 for word in words if word.lower() in important_keywords) * 0.5
-        score += keyword_score
-        
-        scored_sentences.append((score, sentence))
-    
-    # Sort by score and take top sentences
-    scored_sentences.sort(reverse=True)
-    
-    # Determine number of sentences to include in summary (roughly 20-30% of original)
-    summary_size = max(3, min(int(len(sentences) * 0.3), 10))
-    
-    # Get top sentences and sort them by original order
-    top_sentences = [s[1] for s in scored_sentences[:summary_size]]
-    ordered_sentences = []
-    for sentence in sentences:
-        if sentence in top_sentences:
-            ordered_sentences.append(sentence)
-            if len(ordered_sentences) >= summary_size:
-                break
-    
-    # Combine into a summary
-    summary = " ".join(ordered_sentences)
-    
-    # Add a disclaimer
-    disclaimer = "\n\n(Note: This is a basic extractive summary. For better results, TaskTamer would use AI-based summarization in a production environment.)"
-    
-    return summary + disclaimer
+summary_prompt = PromptNode(
+    model_name_or_path=LLM_MODEL,
+    default_prompt_template=PromptTemplate(
+        "Summarize the following document: {documents}"
+    )
+)
 
-def fetch_webpage_content(url):
-    """Fetches and extracts text content from a web page."""
+def fetch_webpage_content(url: str) -> str:
     try:
-        # Check if it's a YouTube URL
-        if is_youtube_url(url):
-            return fetch_youtube_captions(url)
-            
-        # Otherwise treat it as a regular webpage
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
         response.raise_for_status()
-        
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # Remove script and style elements
-        for script in soup(["script", "style", "nav", "footer", "header"]):
-            script.extract()
-        
-        # Get text content from paragraphs, headings, and lists
-        paragraphs = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'])
-        text = "\n".join([elem.get_text().strip() for elem in paragraphs if elem.get_text().strip()])
+        for tag in soup(['script', 'style', 'header', 'footer', 'nav']):
+            tag.decompose()
+            
+        paragraphs = soup.find_all("p")
+        text = "\n".join([p.get_text().strip() for p in paragraphs if p.get_text().strip()])
         
         if not text:
-            # If no structured elements found, get all text
-            text = soup.get_text()
-            # Clean up whitespace
-            text = re.sub(r'\s+', ' ', text).strip()
-        
+            main_content = soup.find('main') or soup.find('article') or soup.find('body')
+            if main_content:
+                text = main_content.get_text(separator="\n", strip=True)
+            
         return text if text else "No readable content found."
     except requests.RequestException as e:
-        return f"Error fetching webpage: {str(e)}"
-    except Exception as e:
-        return f"Error processing webpage: {str(e)}"
+        return f"Error fetching webpage: {e}"
 
-def is_youtube_url(url):
-    """Check if a URL is a YouTube video."""
-    parsed_url = urlparse(url)
-    
-    # Standard YouTube URLs
-    if parsed_url.netloc in ('youtube.com', 'www.youtube.com') and parsed_url.path == '/watch':
-        return True
-    
-    # YouTube Shorts
-    if parsed_url.netloc in ('youtube.com', 'www.youtube.com') and '/shorts/' in parsed_url.path:
-        return True
-    
-    # Shortened youtu.be links
-    if parsed_url.netloc == 'youtu.be':
-        return True
-    
-    return False
-
-def fetch_youtube_captions(url):
-    """
-    Attempt to fetch captions/transcripts from a YouTube video.
-    
-    This is a simplified version. In a production app, you would:
-    1. Use the YouTube Data API
-    2. Or use a library like youtube-transcript-api
-    
-    This function simulates getting transcripts by returning a placeholder message
-    """
+def get_youtube_captions(youtube_url: str) -> str:
     try:
-        # Extract video ID
-        video_id = None
-        parsed_url = urlparse(url)
-        
-        if parsed_url.netloc in ('youtube.com', 'www.youtube.com'):
-            if parsed_url.path == '/watch':
-                # Regular YouTube URL
-                query = parse_qs(parsed_url.query)
-                video_id = query.get('v', [''])[0]
-            elif '/shorts/' in parsed_url.path:
-                # YouTube Shorts
-                video_id = parsed_url.path.split('/shorts/')[1]
-        elif parsed_url.netloc == 'youtu.be':
-            # Shortened URL
-            video_id = parsed_url.path.lstrip('/')
-        
+        video_id = extract_youtube_id(youtube_url)
         if not video_id:
-            return "Could not extract YouTube video ID from URL."
+            return "Invalid YouTube URL"
+            
+        api_service_name = "youtube"
+        api_version = "v3"
+        DEVELOPER_KEY = ""  # Add your YouTube API key here
         
-        # In a real implementation, you would call YouTube API or use youtube-transcript-api here
-        # For this demo, we'll return a placeholder explaining what we would do
+        if not DEVELOPER_KEY:
+            return "YouTube API key not configured"
+            
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=DEVELOPER_KEY)
+            
+        request = youtube.captions().list(
+            part="snippet",
+            videoId=video_id
+        )
+        response = request.execute()
         
-        return f"""
-This is a placeholder for YouTube video transcript content from video ID: {video_id}
-
-In a full implementation, TaskTamer would:
-1. Use the YouTube Data API or a library like youtube-transcript-api to fetch actual captions
-2. Process closed captions or auto-generated transcripts if available
-3. Provide a complete transcript of the video content
-
-The summary would then be generated based on the actual transcript content.
-
-For demonstration purposes, let's assume this is the transcript of an educational video about task management strategies:
-
-Task management is essential for productivity. Breaking complex tasks into smaller steps helps make them more manageable. The Pomodoro Technique suggests working in focused intervals of 25 minutes followed by short breaks. Another effective strategy is time blocking, where you schedule specific activities during designated time slots. Prioritization is also crucial - the Eisenhower Matrix helps categorize tasks by urgency and importance. Regular reviews of your task list help ensure you're on track and making progress toward your goals. Digital tools can enhance task management by providing reminders, organization features, and synchronization across devices.
-"""
+        if "items" in response and response["items"]:
+            caption_id = response["items"][0]["id"]
+            request = youtube.captions().download(
+                id=caption_id,
+                tfmt="srt"
+            )
+            caption_text = request.execute()
+            
+            clean_text = re.sub(r'\d+:\d+:\d+,\d+ --> \d+:\d+:\d+,\d+', '', caption_text)
+            clean_text = re.sub(r'^\d+$', '', clean_text, flags=re.MULTILINE)
+            return clean_text.strip()
+        else:
+            return "No captions available for this video"
     except Exception as e:
-        return f"Error processing YouTube video: {str(e)}"
+        return f"Error retrieving YouTube captions: {e}"
+
+def extract_youtube_id(url: str) -> Union[str, None]:
+    youtube_regex = r'(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})'
+    match = re.search(youtube_regex, url)
+    return match.group(1) if match else None
+
+def process_url(url: str) -> str:
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc.lower()
+    
+    if 'youtube.com' in domain or 'youtu.be' in domain:
+        return get_youtube_captions(url)
+    else:
+        return fetch_webpage_content(url)
+
+def summarize_content(content: str = None, url: str = None) -> str:
+    if url:
+        content = process_url(url)
+    
+    if not content:
+        return "No content provided for summarization."
+        
+    processed_docs = tamer.process_text(content)
+    if not processed_docs:
+        return "Failed to process the content."
+        
+    summary = summary_prompt(documents=processed_docs)
+    
+    if isinstance(summary, dict) and "results" in summary:
+        return summary["results"][0]
+    return "Failed to generate summary."

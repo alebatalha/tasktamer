@@ -1,4 +1,3 @@
-"""UI pages package for TaskTamer."""
 from .home_page import show_home_page
 from .task_page import show_task_page
 from .summary_page import show_summary_page
