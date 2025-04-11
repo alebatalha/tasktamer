@@ -55,4 +55,30 @@ def format_file_size(size_bytes: int) -> str:
     elif size_bytes < 1024 * 1024 * 1024:
         return f"{size_bytes / (1024 * 1024):.1f} MB"
     else:
-        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"# utils/helpers.py - Add these functions
+import streamlit as st
+import os
+
+def ensure_directories(*dirs):
+    """Ensures that directories exist, creating them if needed."""
+    for directory in dirs:
+        os.makedirs(directory, exist_ok=True)
+    return True
+
+def handle_file_upload(uploaded_file):
+    """Processes an uploaded file and returns its content."""
+    if uploaded_file is None:
+        return None
+        
+    try:
+        content = uploaded_file.getvalue().decode("utf-8")
+        return content
+    except UnicodeDecodeError:
+        # For binary files
+        return uploaded_file.getvalue()
+
+def clear_session_state(*keys):
+    """Clears specific keys from session state."""
+    for key in keys:
+        if key in st.session_state:
+            del st.session_state[key]
