@@ -1,69 +1,281 @@
-"""
-TaskTamer - Your magical productivity assistant.
-Main application entry point.
-"""
 import streamlit as st
-
-# This MUST be the first Streamlit command
-st.set_page_config(
-    page_title="TaskTamer",
-    page_icon="🧙‍♂️",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-# Now import everything else
+import pandas as pd
 import os
-import sys
-from pathlib import Path
+import requests
+from bs4 import BeautifulSoup
+import tempfile
+from backend.task_breakdown import break_task
+from backend.summarization import summarize_documents
+from backend.quiz_generator import generate_questions, get_formatted_questions, record_answer, get_quiz_results, get_quiz_download
 
-# Ensure directories exist in path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
+# Initialize session state variables
+if 'quiz_started' not in st.session_state:
+    st.session_state.quiz_started = False
+if 'current_question' not in st.session_state:
+    st.session_state.current_question = 0
+if 'quiz_complete' not in st.session_state:
+    st.session_state.quiz_complete = False
+if 'content' not in st.session_state:
+    st.session_state.content = ""
+if 'formatted_questions' not in st.session_state:
+    st.session_state.formatted_questions = []
 
-# Import backend, UI components, and utilities
-try:
-    from backend.core import TaskTamer
-    from ui.styles import apply_custom_css
-    from ui.pages.home_page import show_home_page
-    from ui.pages.task_page import show_task_page
-    from ui.pages.summary_page import show_summary_page
-    from ui.pages.quiz_page import show_quiz_page
-    from ui.pages.chat_component import show_chat_component
-    from utils.helpers import ensure_directories
-except ImportError as e:
-    st.error(f"Could not import required modules: {str(e)}")
-    st.info("Make sure all required directories and modules exist.")
-    st.stop()
+def fetch_webpage_content(url):
+    """Fetch content from a URL"""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        paragraphs = soup.find_all("p")
+        text = "\n".join([p.get_text() for p in paragraphs])
+        return text if text else "No readable content found."
+    except requests.RequestException as e:
+        return f"Error fetching webpage: {e}"
 
-# Initialize environment
-ensure_directories()
+def reset_quiz():
+    st.session_state.quiz_started = False
+    st.session_state.current_question = 0
+    st.session_state.quiz_complete = False
+    st.session_state.formatted_questions = []
 
-# Initialize TaskTamer
-@st.cache_resource
-def get_task_tamer():
-    return TaskTamer()
+def next_question():
+    if st.session_state.current_question < len(st.session_state.formatted_questions) - 1:
+        st.session_state.current_question += 1
+    else:
+        st.session_state.quiz_complete = True
 
-task_tamer = get_task_tamer()
+def start_quiz():
+    st.session_state.quiz_started = True
+    st.session_state.current_question = 0
+    st.session_state.quiz_complete = False
 
-# Apply custom CSS
-apply_custom_css()
+# Sidebar navigation
+st.sidebar.title('TaskTamer')
+selection = st.sidebar.radio("Go to", ["Home", "Breakdown Activities", "Summary", "Quiz"])
 
-# Main app logic
-if __name__ == "__main__":
-    # Initialize session state for navigation
-    if "current_feature" not in st.session_state:
-        st.session_state.current_feature = None
+# Home Page
+if selection == "Home":
+    st.title('Welcome to TaskTamer')
+    st.write('TaskTamer helps you break down complex tasks, summarize documents, and test your knowledge with quizzes.')
+    st.write('Select a feature from the sidebar to get started:')
     
-    # Navigation logic
-    if st.session_state.current_feature is None:
-        show_home_page(task_tamer)
-    elif st.session_state.current_feature == "task_breakdown":
-        show_task_page(task_tamer)
-    elif st.session_state.current_feature == "summarizer":
-        show_summary_page(task_tamer)
-    elif st.session_state.current_feature == "quiz":
-        show_quiz_page(task_tamer)
+    st.subheader('Features:')
+    st.markdown('- **Breakdown Activities**: Split complex tasks into manageable steps')
+    st.markdown('- **Summary**: Get concise summaries of your documents or web content')
+    st.markdown('- **Quiz**: Test your understanding with automatically generated questions')
+
+# Breakdown Activities Feature
+elif selection == "Breakdown Activities":
+    st.title('Breakdown Activities')
+    task = st.text_input("Enter a complex task:")
+    if st.button('Break Down Task'):
+        with st.spinner('Breaking down your task...'):
+            steps = break_task(task)
+            if steps:
+                st.write("Here are the steps to complete your task:")
+                for i, step in enumerate(steps, 1):
+                    st.write(f"{i}. {step}")
+            else:
+                st.error("No steps generated.")
+
+# Summary Feature
+elif selection == "Summary":
+    st.title('Document Summary')
     
-    # Always show the chat at the bottom
-    show_chat_component(task_tamer)
+    tab1, tab2, tab3 = st.tabs(["Text Input", "File Upload", "Web URL"])
+    
+    with tab1:
+        text_content = st.text_area("Enter content to summarize:", height=250)
+        if st.button('Summarize Text'):
+            if text_content:
+                st.session_state.content = text_content
+                with st.spinner('Generating summary...'):
+                    summary = summarize_documents(text_content)
+                    st.subheader("Summary")
+                    st.write(summary)
+            else:
+                st.warning("Please enter some text to summarize.")
+    
+    with tab2:
+        uploaded_file = st.file_uploader("Upload a document:", type=['txt', 'pdf', 'docx'])
+        if uploaded_file is not None:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
+                tmp_file.write(uploaded_file.getvalue())
+                tmp_path = tmp_file.name
+            
+            if st.button('Summarize File'):
+                with st.spinner('Processing file and generating summary...'):
+                    # For simplicity we'll just read the file as text here
+                    # In a real app, you would use the proper converter from backend_module.py
+                    with open(tmp_path, 'rb') as f:
+                        file_content = f.read().decode('utf-8', errors='replace')
+                    st.session_state.content = file_content
+                    summary = summarize_documents(file_content)
+                    st.subheader("Summary")
+                    st.write(summary)
+                    
+                # Clean up the temp file
+                os.unlink(tmp_path)
+    
+    with tab3:
+        url = st.text_input("Enter a URL:")
+        if st.button('Summarize Web Content'):
+            if url:
+                with st.spinner('Fetching and summarizing web content...'):
+                    web_content = fetch_webpage_content(url)
+                    st.session_state.content = web_content
+                    summary = summarize_documents(web_content)
+                    st.subheader("Summary")
+                    st.write(summary)
+            else:
+                st.warning("Please enter a URL.")
+
+# Quiz Feature
+elif selection == "Quiz":
+    st.title('Knowledge Quiz')
+    
+    if not st.session_state.quiz_started:
+        tab1, tab2, tab3 = st.tabs(["Text Input", "File Upload", "Web URL"])
+        
+        with tab1:
+            text_content = st.text_area("Enter content to create a quiz from:", height=250)
+            num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5)
+            if st.button('Generate Quiz from Text'):
+                if text_content:
+                    with st.spinner('Generating quiz questions...'):
+                        st.session_state.content = text_content
+                        questions = generate_questions(text_content, num_questions)
+                        if isinstance(questions, list) and questions:
+                            st.session_state.formatted_questions = get_formatted_questions()
+                            start_quiz()
+                        else:
+                            st.error("Failed to generate questions. Please provide more detailed content.")
+                else:
+                    st.warning("Please enter some text first.")
+        
+        with tab2:
+            uploaded_file = st.file_uploader("Upload a document:", type=['txt', 'pdf', 'docx'])
+            num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5, key="file_q_slider")
+            if uploaded_file is not None:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    tmp_path = tmp_file.name
+                
+                if st.button('Generate Quiz from File'):
+                    with st.spinner('Processing file and generating quiz...'):
+                        # For simplicity we'll just read the file as text here
+                        with open(tmp_path, 'rb') as f:
+                            file_content = f.read().decode('utf-8', errors='replace')
+                        st.session_state.content = file_content
+                        questions = generate_questions(file_content, num_questions)
+                        if isinstance(questions, list) and questions:
+                            st.session_state.formatted_questions = get_formatted_questions()
+                            start_quiz()
+                        else:
+                            st.error("Failed to generate questions. Please provide more detailed content.")
+                            
+                    # Clean up the temp file
+                    os.unlink(tmp_path)
+        
+        with tab3:
+            url = st.text_input("Enter a URL:")
+            num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5, key="url_q_slider")
+            if st.button('Generate Quiz from Web Content'):
+                if url:
+                    with st.spinner('Fetching content and generating quiz...'):
+                        web_content = fetch_webpage_content(url)
+                        st.session_state.content = web_content
+                        questions = generate_questions(web_content, num_questions)
+                        if isinstance(questions, list) and questions:
+                            st.session_state.formatted_questions = get_formatted_questions()
+                            start_quiz()
+                        else:
+                            st.error("Failed to generate questions. Please provide more detailed content.")
+                else:
+                    st.warning("Please enter a URL.")
+    
+    # Display quiz if started
+    elif st.session_state.quiz_started and not st.session_state.quiz_complete:
+        questions = st.session_state.formatted_questions
+        if questions and st.session_state.current_question < len(questions):
+            current_q = questions[st.session_state.current_question]
+            
+            # Progress indicator
+            st.progress((st.session_state.current_question) / len(questions))
+            st.write(f"Question {st.session_state.current_question + 1} of {len(questions)}")
+            
+            # Display question
+            st.subheader(current_q['question'])
+            
+            # Create radio buttons for options
+            answer = st.radio(
+                "Select your answer:",
+                current_q['options'],
+                key=f"q_{st.session_state.current_question}"
+            )
+            
+            # Next button
+            if st.button('Submit Answer'):
+                # Record the answer
+                record_answer(current_q['question_idx'], answer)
+                next_question()
+                st.rerun()
+    
+    # Show results when quiz is complete
+    if st.session_state.quiz_complete:
+        results = get_quiz_results()
+        
+        st.success(f"Quiz Complete! Your score: {results['score']}/{results['total']} ({results['percentage']:.1f}%)")
+        st.info(results['feedback'])
+        
+        # Display all questions with correct/incorrect answers
+        st.subheader("Review Questions")
+        for i, q in enumerate(st.session_state.formatted_questions):
+            with st.expander(f"Question {i+1}: {q['question']}"):
+                st.write("Options:")
+                for opt in q['options']:
+                    if opt == q['correct_answer']:
+                        st.markdown(f"- **{opt}** ✓")
+                    else:
+                        st.write(f"- {opt}")
+                
+                st.write(f"**Correct answer:** {q['correct_answer']}")
+        
+        # Download options
+        st.subheader("Download Quiz")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("Download as CSV"):
+                csv_data = get_quiz_download(format='csv')
+                st.download_button(
+                    label="Download CSV",
+                    data=csv_data,
+                    file_name="task_tamer_quiz.csv",
+                    mime="text/csv"
+                )
+        
+        with col2:
+            if st.button("Download as JSON"):
+                json_data = get_quiz_download(format='json')
+                st.download_button(
+                    label="Download JSON",
+                    data=json_data,
+                    file_name="task_tamer_quiz.json",
+                    mime="application/json"
+                )
+        
+        with col3:
+            if st.button("Download as Text"):
+                text_data = get_quiz_download(format='text')
+                st.download_button(
+                    label="Download Text",
+                    data=text_data,
+                    file_name="task_tamer_quiz.txt",
+                    mime="text/plain"
+                )
+        
+        # Option to restart
+        if st.button("Start New Quiz"):
+            reset_quiz()
+            st.rerun()
