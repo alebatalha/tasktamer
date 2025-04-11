@@ -4,7 +4,7 @@ import tempfile
 from backend.task_breakdown import break_task
 from backend.summarization import summarize_documents
 from backend.question_generation import (
-    generate_questions, 
+    generate_questions_from_text as generate_questions, 
     get_formatted_questions, 
     record_answer, 
     get_quiz_results, 
@@ -63,19 +63,27 @@ if selection == "Home":
     st.write('TaskTamer helps you break down complex tasks, summarize documents, and test your knowledge with quizzes.')
     st.write('Select a feature from the sidebar to get started.')
 
+    st.subheader('Features:')
+    st.markdown('- **Breakdown Activities**: Split complex tasks into manageable steps')
+    st.markdown('- **Summary**: Get concise summaries of your documents or text')
+    st.markdown('- **Quiz**: Test your understanding with automatically generated questions')
+
 # Breakdown Activities Feature
 elif selection == "Breakdown Activities":
     st.title('Breakdown Activities')
     task = st.text_input("Enter a complex task:")
     if st.button('Break Down Task'):
-        with st.spinner('Breaking down your task...'):
-            steps = break_task(task)
-            if steps:
-                st.write("Here are the steps to complete your task:")
-                for i, step in enumerate(steps, 1):
-                    st.write(f"{i}. {step}")
-            else:
-                st.error("No steps generated.")
+        if task:
+            with st.spinner('Breaking down your task...'):
+                steps = break_task(task)
+                if steps:
+                    st.write("Here are the steps to complete your task:")
+                    for i, step in enumerate(steps, 1):
+                        st.write(f"{i}. {step}")
+                else:
+                    st.error("No steps generated.")
+        else:
+            st.warning("Please enter a task to break down.")
 
 # Summary Feature
 elif selection == "Summary":
@@ -96,7 +104,7 @@ elif selection == "Summary":
                 st.warning("Please enter some text to summarize.")
     
     else:  # File Upload
-        uploaded_file = st.file_uploader("Upload a document:", type=['txt', 'pdf', 'docx'])
+        uploaded_file = st.file_uploader("Upload a document:", type=['txt'])
         if uploaded_file is not None:
             if st.button('Summarize File'):
                 with st.spinner('Processing file and generating summary...'):
@@ -130,7 +138,7 @@ elif selection == "Quiz":
                     st.warning("Please enter some text first.")
         
         else:  # File Upload
-            uploaded_file = st.file_uploader("Upload a document:", type=['txt', 'pdf', 'docx'])
+            uploaded_file = st.file_uploader("Upload a document:", type=['txt'])
             num_questions = st.slider("Number of questions:", min_value=1, max_value=10, value=5)
             if uploaded_file is not None:
                 if st.button('Generate Quiz from File'):
