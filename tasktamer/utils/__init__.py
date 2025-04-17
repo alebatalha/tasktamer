@@ -1,0 +1,1 @@
+from .fallback_detector import USING_FALLBACK, HAYSTACK_AVAILABLE, YOUTUBE_API_AVAILABLE
